@@ -332,52 +332,17 @@ valentine_html = """
             z-index: 10;
         }
 
-        .heart-container {
-            margin-bottom: 2.5rem;
+        .gif-container {
+            margin-bottom: 1.5rem;
             animation: celebrateFadeIn 0.8s ease-out;
         }
 
-        .heart {
-            width: 120px;
-            height: 108px;
-            position: relative;
-            animation: heartBeat 1s ease-in-out infinite, heartFloat 3s ease-in-out infinite;
-            filter: drop-shadow(0 10px 30px rgba(232, 137, 158, 0.5));
-        }
-
-        .heart::before,
-        .heart::after {
-            content: '';
-            position: absolute;
-            width: 62px;
-            height: 100px;
-            background: linear-gradient(135deg, #E8899E 0%, #D4708A 100%);
-            border-radius: 60px 60px 0 0;
-        }
-
-        .heart::before {
-            left: 60px;
-            transform: rotate(-45deg);
-            transform-origin: 0 100%;
-        }
-
-        .heart::after {
-            left: 0;
-            transform: rotate(45deg);
-            transform-origin: 100% 100%;
-        }
-
-        @keyframes heartBeat {
-            0%, 100% { transform: scale(1); }
-            15% { transform: scale(1.2); }
-            30% { transform: scale(1); }
-            45% { transform: scale(1.15); }
-            60% { transform: scale(1); }
-        }
-
-        @keyframes heartFloat {
-            0%, 100% { margin-top: 0; }
-            50% { margin-top: -20px; }
+        .celebration-gif {
+            width: 280px;
+            max-width: 80vw;
+            height: auto;
+            border-radius: 16px;
+            box-shadow: 0 10px 40px rgba(232, 137, 158, 0.3);
         }
 
         .celebration-text {
@@ -465,8 +430,8 @@ valentine_html = """
         <div id="celebration-screen" class="screen">
             <canvas id="confetti-canvas"></canvas>
             <div class="celebration-content">
-                <div class="heart-container">
-                    <div class="heart"></div>
+                <div class="gif-container">
+                    <img src="https://media1.tenor.com/m/yaNqkG8o9UcAAAAC/hhgf.gif" alt="Yay!" class="celebration-gif">
                 </div>
                 <h1 class="celebration-text">Yay!</h1>
                 <p class="celebration-subtext">Happy Valentine's Day, Rohini!</p>
@@ -477,7 +442,8 @@ valentine_html = """
     <script>
         // ========== CONFIGURATION ==========
         const TRIGGER_DISTANCE = 150;
-        const MAX_YES_SCALE = 2.0;  // Yes button grows up to 2x size
+        const MAX_YES_SCALE = 3.0;  // Yes button grows up to 3x size
+        const EVADES_TO_MAX = 50;   // Number of evades to reach max size
 
         const tooltipMessages = [
             "Nice try! 😏",
@@ -499,6 +465,8 @@ valentine_html = """
         let isMusicPlaying = false;
         let hasStartedEvading = false;
         let noButtonOffset = { x: 0, y: 0 };  // Track cumulative offset
+        let lastEvadeTime = 0;  // Throttle evade counting
+        let currentYesScale = 1.0;  // Track current scale
 
         // ========== ELEMENTS ==========
         const noBtn = document.getElementById('no-btn');
@@ -724,13 +692,15 @@ valentine_html = """
                 // Apply smooth transform
                 noBtn.style.transform = `translate(${noButtonOffset.x}px, ${noButtonOffset.y}px)`;
 
-                // Count evades (throttled)
-                if (escapeStrength > 0.5) {
+                // Count evades (throttled to once per 200ms)
+                const now = Date.now();
+                if (escapeStrength > 0.3 && now - lastEvadeTime > 200) {
+                    lastEvadeTime = now;
                     evadeCount++;
                     incrementYesButton();
 
                     // Show tooltip occasionally
-                    if (evadeCount % 3 === 1) {
+                    if (evadeCount % 4 === 1) {
                         const tooltipX = btnCenterX + noButtonOffset.x;
                         const tooltipY = btnCenterY + noButtonOffset.y - rect.height / 2 - 20;
                         showTooltip(tooltipX, tooltipY);
@@ -754,16 +724,16 @@ valentine_html = """
 
         // ========== YES BUTTON GROWTH ==========
         function incrementYesButton() {
-            // Scale grows from 1.0 to MAX_YES_SCALE (2.0) over ~20 evades
-            const progress = Math.min(evadeCount / 20, 1);
-            const scale = 1 + progress * (MAX_YES_SCALE - 1);
+            // Scale grows from 1.0 to MAX_YES_SCALE over EVADES_TO_MAX evades
+            const progress = Math.min(evadeCount / EVADES_TO_MAX, 1);
+            currentYesScale = 1 + progress * (MAX_YES_SCALE - 1);
 
             // Glow also increases
-            const glowOpacity = 0.4 + progress * 0.4;
-            const glowSpread = 10 + progress * 40;
-            const glowBlur = 20 + progress * 35;
+            const glowOpacity = 0.4 + progress * 0.5;
+            const glowSpread = 10 + progress * 50;
+            const glowBlur = 20 + progress * 40;
 
-            yesBtn.style.transform = `scale(${scale})`;
+            yesBtn.style.transform = `scale(${currentYesScale})`;
             yesBtn.style.boxShadow = `0 8px ${glowBlur}px ${glowSpread}px rgba(232, 137, 158, ${glowOpacity})`;
         }
 
