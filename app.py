@@ -264,11 +264,11 @@ valentine_html = """
             color: white;
             box-shadow: 0 8px 30px rgba(232, 137, 158, 0.4);
             min-width: 140px;
+            transition: transform 0.4s cubic-bezier(0.25, 0.1, 0.25, 1), box-shadow 0.4s ease;
         }
 
         .btn-yes:hover {
-            transform: scale(1.08) translateY(-2px);
-            box-shadow: 0 12px 40px rgba(232, 137, 158, 0.5);
+            filter: brightness(1.05);
         }
 
         .btn-no {
@@ -283,9 +283,8 @@ valentine_html = """
             transform: scale(1.05);
         }
 
-        .btn-no.evading {
-            position: fixed !important;
-            z-index: 100;
+        .btn-no {
+            transition: transform 0.5s cubic-bezier(0.25, 0.1, 0.25, 1);
         }
 
         /* ========== TOOLTIP ========== */
@@ -451,7 +450,7 @@ valentine_html = """
         <div id="question-screen" class="screen active">
             <div class="question-content">
                 <h1 class="question-text">Will you be my Valentine, Rohini?</h1>
-                <p class="subtext">Choose wisely...</p>
+                <p class="subtext">remember i love you</p>
                 <div class="button-container">
                     <button id="yes-btn" class="btn btn-yes">Yes</button>
                     <button id="no-btn" class="btn btn-no">No</button>
@@ -477,10 +476,8 @@ valentine_html = """
 
     <script>
         // ========== CONFIGURATION ==========
-        const TRIGGER_DISTANCE = 130;
-        const ESCAPE_DISTANCE = 200;
-        const PADDING = 40;
-        const MAX_GLOW_LEVEL = 10;
+        const TRIGGER_DISTANCE = 150;
+        const MAX_YES_SCALE = 2.0;  // Yes button grows up to 2x size
 
         const tooltipMessages = [
             "Nice try! 😏",
@@ -498,10 +495,10 @@ valentine_html = """
         // ========== STATE ==========
         let evadeCount = 0;
         let tooltipIndex = 0;
-        let isEvading = false;
         let audioContext = null;
         let isMusicPlaying = false;
         let hasStartedEvading = false;
+        let noButtonOffset = { x: 0, y: 0 };  // Track cumulative offset
 
         // ========== ELEMENTS ==========
         const noBtn = document.getElementById('no-btn');
@@ -688,27 +685,18 @@ valentine_html = """
         });
 
         // ========== EVASION LOGIC ==========
-        function getButtonCenter(btn) {
-            const rect = btn.getBoundingClientRect();
-            return {
-                x: rect.left + rect.width / 2,
-                y: rect.top + rect.height / 2,
-                width: rect.width,
-                height: rect.height
-            };
-        }
-
         function handleCursorMove(clientX, clientY) {
-            if (isEvading || !questionScreen.classList.contains('active')) return;
+            if (!questionScreen.classList.contains('active')) return;
 
-            const btn = getButtonCenter(noBtn);
-            const dx = clientX - btn.x;
-            const dy = clientY - btn.y;
+            const rect = noBtn.getBoundingClientRect();
+            const btnCenterX = rect.left + rect.width / 2;
+            const btnCenterY = rect.top + rect.height / 2;
+
+            const dx = clientX - btnCenterX;
+            const dy = clientY - btnCenterY;
             const distance = Math.sqrt(dx * dx + dy * dy);
 
-            if (distance < TRIGGER_DISTANCE) {
-                isEvading = true;
-
+            if (distance < TRIGGER_DISTANCE && distance > 0) {
                 // Initialize audio on first evade
                 if (!hasStartedEvading) {
                     hasStartedEvading = true;
@@ -718,39 +706,38 @@ valentine_html = """
                     }
                 }
 
-                // Calculate escape direction (opposite of cursor)
-                let escapeAngle = Math.atan2(-dy, -dx);
+                // Calculate escape: move away from cursor proportionally
+                const escapeStrength = (TRIGGER_DISTANCE - distance) / TRIGGER_DISTANCE;
+                const escapeX = -(dx / distance) * escapeStrength * 80;
+                const escapeY = -(dy / distance) * escapeStrength * 80;
 
-                // Add randomness (±50 degrees)
-                const randomOffset = (Math.random() - 0.5) * (Math.PI * 0.55);
-                escapeAngle += randomOffset;
+                // Update cumulative offset
+                noButtonOffset.x += escapeX;
+                noButtonOffset.y += escapeY;
 
-                // Calculate new position
-                let newX = btn.x + Math.cos(escapeAngle) * ESCAPE_DISTANCE;
-                let newY = btn.y + Math.sin(escapeAngle) * ESCAPE_DISTANCE;
+                // Bound the offset so button stays on screen
+                const maxOffsetX = window.innerWidth * 0.35;
+                const maxOffsetY = window.innerHeight * 0.3;
+                noButtonOffset.x = Math.max(-maxOffsetX, Math.min(maxOffsetX, noButtonOffset.x));
+                noButtonOffset.y = Math.max(-maxOffsetY, Math.min(maxOffsetY, noButtonOffset.y));
 
-                // Bound within viewport
-                const viewportWidth = window.innerWidth;
-                const viewportHeight = window.innerHeight;
+                // Apply smooth transform
+                noBtn.style.transform = `translate(${noButtonOffset.x}px, ${noButtonOffset.y}px)`;
 
-                newX = Math.max(PADDING + btn.width / 2, Math.min(viewportWidth - PADDING - btn.width / 2, newX));
-                newY = Math.max(PADDING + btn.height / 2, Math.min(viewportHeight - PADDING - btn.height / 2, newY));
+                // Count evades (throttled)
+                if (escapeStrength > 0.5) {
+                    evadeCount++;
+                    incrementYesButton();
 
-                // Apply position
-                noBtn.classList.add('evading');
-                noBtn.style.left = `${newX - btn.width / 2}px`;
-                noBtn.style.top = `${newY - btn.height / 2}px`;
-                noBtn.style.transition = 'left 0.4s cubic-bezier(0.34, 1.56, 0.64, 1), top 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)';
+                    // Show tooltip occasionally
+                    if (evadeCount % 3 === 1) {
+                        const tooltipX = btnCenterX + noButtonOffset.x;
+                        const tooltipY = btnCenterY + noButtonOffset.y - rect.height / 2 - 20;
+                        showTooltip(tooltipX, tooltipY);
+                    }
 
-                // Side effects
-                evadeCount++;
-                incrementGlow();
-                showTooltip(newX, newY - btn.height / 2 - 20);
-                playWhoosh();
-
-                setTimeout(() => {
-                    isEvading = false;
-                }, 400);
+                    playWhoosh();
+                }
             }
         }
 
@@ -765,16 +752,19 @@ valentine_html = """
             handleCursorMove(touch.clientX, touch.clientY);
         }, { passive: true });
 
-        // ========== GLOW EFFECT ==========
-        function incrementGlow() {
-            const glowLevel = Math.min(evadeCount, MAX_GLOW_LEVEL);
-            const glowOpacity = 0.4 + (glowLevel / MAX_GLOW_LEVEL) * 0.4;
-            const glowSpread = 8 + (glowLevel / MAX_GLOW_LEVEL) * 35;
-            const glowBlur = 15 + (glowLevel / MAX_GLOW_LEVEL) * 30;
-            const scale = 1 + (glowLevel / MAX_GLOW_LEVEL) * 0.12;
+        // ========== YES BUTTON GROWTH ==========
+        function incrementYesButton() {
+            // Scale grows from 1.0 to MAX_YES_SCALE (2.0) over ~20 evades
+            const progress = Math.min(evadeCount / 20, 1);
+            const scale = 1 + progress * (MAX_YES_SCALE - 1);
 
-            yesBtn.style.boxShadow = `0 8px ${glowBlur}px ${glowSpread}px rgba(232, 137, 158, ${glowOpacity})`;
+            // Glow also increases
+            const glowOpacity = 0.4 + progress * 0.4;
+            const glowSpread = 10 + progress * 40;
+            const glowBlur = 20 + progress * 35;
+
             yesBtn.style.transform = `scale(${scale})`;
+            yesBtn.style.boxShadow = `0 8px ${glowBlur}px ${glowSpread}px rgba(232, 137, 158, ${glowOpacity})`;
         }
 
         // ========== TOOLTIP ==========
