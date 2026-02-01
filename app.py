@@ -485,6 +485,48 @@ valentine_html = """
             transform: scale(1.05);
         }
 
+        .difficulty-container {
+            margin: 1rem 0;
+            font-family: 'Inter', sans-serif;
+            font-size: 0.9rem;
+            color: #6B6560;
+        }
+
+        .difficulty-container label {
+            display: block;
+            margin-bottom: 0.5rem;
+        }
+
+        #difficulty-slider {
+            width: 200px;
+            height: 6px;
+            -webkit-appearance: none;
+            appearance: none;
+            background: linear-gradient(to right, #FFB6C1, #E8899E, #D4708A);
+            border-radius: 3px;
+            outline: none;
+        }
+
+        #difficulty-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 18px;
+            height: 18px;
+            background: #E8899E;
+            border-radius: 50%;
+            cursor: pointer;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+        }
+
+        #difficulty-slider::-moz-range-thumb {
+            width: 18px;
+            height: 18px;
+            background: #E8899E;
+            border-radius: 50%;
+            cursor: pointer;
+            border: none;
+        }
+
         /* ========== CONFETTI CANVAS ========== */
         #confetti-canvas {
             position: fixed;
@@ -572,7 +614,11 @@ valentine_html = """
                     <div class="game-container" id="pong-game">
                         <canvas id="pong-canvas" class="game-canvas" width="400" height="300"></canvas>
                         <p class="game-score">You: <span id="player-score">0</span> | Computer: <span id="computer-score">0</span></p>
-                        <p class="game-instructions">Use ↑ and ↓ arrow keys to move your paddle</p>
+                        <p class="game-instructions">Hold ↑ or ↓ arrow keys to move your paddle</p>
+                        <div class="difficulty-container">
+                            <label for="difficulty-slider">CPU Difficulty: <span id="difficulty-label">Medium</span></label>
+                            <input type="range" id="difficulty-slider" min="1" max="5" value="3" oninput="updateDifficulty(this.value)">
+                        </div>
                         <button class="restart-btn" onclick="restartPong()">Reset Game</button>
                     </div>
                 </div>
@@ -1113,19 +1159,20 @@ valentine_html = """
 
             direction = nextDirection;
 
-            const head = {
-                x: snake[0].x + direction.x,
-                y: snake[0].y + direction.y
-            };
-
             const cols = snakeCanvas.width / GRID_SIZE;
             const rows = snakeCanvas.height / GRID_SIZE;
 
-            // Wall collision
-            if (head.x < 0 || head.x >= cols || head.y < 0 || head.y >= rows) {
-                endSnakeGame();
-                return;
-            }
+            // Calculate new head position with wrap-around
+            let newX = snake[0].x + direction.x;
+            let newY = snake[0].y + direction.y;
+
+            // Wrap around borders
+            if (newX < 0) newX = cols - 1;
+            if (newX >= cols) newX = 0;
+            if (newY < 0) newY = rows - 1;
+            if (newY >= rows) newY = 0;
+
+            const head = { x: newX, y: newY };
 
             // Self collision
             if (snake.some(seg => seg.x === head.x && seg.y === head.y)) {
@@ -1209,11 +1256,20 @@ valentine_html = """
         let playerY, computerY, ballX, ballY, ballVX, ballVY;
         let playerScorePong, computerScorePong;
         let pongRunning = false;
+        let playerMovingUp = false;
+        let playerMovingDown = false;
+        let computerSpeed = 3.5;  // Will be adjusted by difficulty
         const PADDLE_HEIGHT = 70;
         const PADDLE_WIDTH = 10;
         const BALL_SIZE = 10;
-        const PADDLE_SPEED = 6;
-        const COMPUTER_SPEED = 3.5;
+        const PADDLE_SPEED = 7;
+
+        function updateDifficulty(value) {
+            const labels = ['Very Easy', 'Easy', 'Medium', 'Hard', 'Impossible'];
+            const speeds = [1.5, 2.5, 3.5, 5, 8];
+            document.getElementById('difficulty-label').textContent = labels[value - 1];
+            computerSpeed = speeds[value - 1];
+        }
 
         function initPong() {
             pongCanvas = document.getElementById('pong-canvas');
@@ -1244,6 +1300,14 @@ valentine_html = """
 
         function updatePong() {
             if (!pongRunning) return;
+
+            // Continuous player paddle movement
+            if (playerMovingUp) {
+                playerY = Math.max(0, playerY - PADDLE_SPEED);
+            }
+            if (playerMovingDown) {
+                playerY = Math.min(pongCanvas.height - PADDLE_HEIGHT, playerY + PADDLE_SPEED);
+            }
 
             // Move ball
             ballX += ballVX;
@@ -1290,13 +1354,13 @@ valentine_html = """
                 resetBall();
             }
 
-            // Computer AI
+            // Computer AI (uses computerSpeed variable from difficulty)
             const computerCenter = computerY + PADDLE_HEIGHT / 2;
             const ballCenter = ballY + BALL_SIZE / 2;
             if (computerCenter < ballCenter - 10) {
-                computerY += COMPUTER_SPEED;
+                computerY += computerSpeed;
             } else if (computerCenter > ballCenter + 10) {
-                computerY -= COMPUTER_SPEED;
+                computerY -= computerSpeed;
             }
             computerY = Math.max(0, Math.min(pongCanvas.height - PADDLE_HEIGHT, computerY));
 
@@ -1359,34 +1423,64 @@ valentine_html = """
             if (document.getElementById('snake-game').classList.contains('active')) {
                 switch(e.key) {
                     case 'ArrowUp':
+                    case 'w':
+                    case 'W':
                         if (direction.y !== 1) nextDirection = {x: 0, y: -1};
                         e.preventDefault();
                         break;
                     case 'ArrowDown':
+                    case 's':
+                    case 'S':
                         if (direction.y !== -1) nextDirection = {x: 0, y: 1};
                         e.preventDefault();
                         break;
                     case 'ArrowLeft':
+                    case 'a':
+                    case 'A':
                         if (direction.x !== 1) nextDirection = {x: -1, y: 0};
                         e.preventDefault();
                         break;
                     case 'ArrowRight':
+                    case 'd':
+                    case 'D':
                         if (direction.x !== -1) nextDirection = {x: 1, y: 0};
                         e.preventDefault();
                         break;
                 }
             }
 
-            // Pong controls
+            // Pong controls - keydown starts movement
             if (document.getElementById('pong-game').classList.contains('active')) {
                 switch(e.key) {
                     case 'ArrowUp':
-                        playerY = Math.max(0, playerY - PADDLE_SPEED * 4);
+                    case 'w':
+                    case 'W':
+                        playerMovingUp = true;
                         e.preventDefault();
                         break;
                     case 'ArrowDown':
-                        playerY = Math.min(pongCanvas.height - PADDLE_HEIGHT, playerY + PADDLE_SPEED * 4);
+                    case 's':
+                    case 'S':
+                        playerMovingDown = true;
                         e.preventDefault();
+                        break;
+                }
+            }
+        });
+
+        // Pong controls - keyup stops movement
+        document.addEventListener('keyup', (e) => {
+            if (document.getElementById('pong-game').classList.contains('active')) {
+                switch(e.key) {
+                    case 'ArrowUp':
+                    case 'w':
+                    case 'W':
+                        playerMovingUp = false;
+                        break;
+                    case 'ArrowDown':
+                    case 's':
+                    case 'S':
+                        playerMovingDown = false;
                         break;
                 }
             }
