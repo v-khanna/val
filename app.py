@@ -325,11 +325,15 @@ valentine_html = """
         /* ========== CELEBRATION SCREEN ========== */
         #celebration-screen {
             background: linear-gradient(180deg, #FAF8F5 0%, #FFF0F3 50%, #FAF8F5 100%);
+            overflow-y: auto;
+            justify-content: flex-start;
+            padding-top: 60px;
         }
 
         .celebration-content {
             text-align: center;
             z-index: 10;
+            padding-bottom: 40px;
         }
 
         .gif-container {
@@ -372,6 +376,113 @@ valentine_html = """
                 opacity: 1;
                 transform: translateY(0) scale(1);
             }
+        }
+
+        /* ========== GAMES SECTION ========== */
+        .games-section {
+            margin-top: 3rem;
+            padding: 2rem;
+            animation: celebrateFadeIn 0.8s ease-out 0.7s both;
+        }
+
+        .games-intro {
+            font-family: 'Cormorant Garamond', Georgia, serif;
+            font-size: clamp(1.1rem, 2.5vw, 1.4rem);
+            color: #6B6560;
+            margin-bottom: 2rem;
+            line-height: 1.6;
+        }
+
+        .days-count {
+            color: #E8899E;
+            font-weight: 600;
+        }
+
+        .game-buttons {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin-bottom: 2rem;
+        }
+
+        .game-btn {
+            padding: 12px 30px;
+            font-family: 'Inter', sans-serif;
+            font-size: 1rem;
+            font-weight: 500;
+            border: 2px solid #E8899E;
+            border-radius: 30px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: white;
+            color: #E8899E;
+        }
+
+        .game-btn:hover, .game-btn.active {
+            background: #E8899E;
+            color: white;
+        }
+
+        .game-container {
+            display: none;
+            background: white;
+            border-radius: 20px;
+            padding: 20px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+            max-width: 500px;
+            margin: 0 auto;
+        }
+
+        .game-container.active {
+            display: block;
+        }
+
+        .game-canvas {
+            border: 2px solid #E8899E;
+            border-radius: 10px;
+            display: block;
+            margin: 0 auto;
+            background: #1a1a2e;
+        }
+
+        .game-score {
+            font-family: 'Inter', sans-serif;
+            font-size: 1.1rem;
+            color: #2D2926;
+            margin-top: 1rem;
+        }
+
+        .game-instructions {
+            font-family: 'Inter', sans-serif;
+            font-size: 0.9rem;
+            color: #8B8580;
+            margin-top: 0.5rem;
+        }
+
+        .game-over-text {
+            font-family: 'Cormorant Garamond', Georgia, serif;
+            font-size: 1.5rem;
+            color: #E8899E;
+            margin-top: 1rem;
+        }
+
+        .restart-btn {
+            margin-top: 1rem;
+            padding: 10px 25px;
+            font-family: 'Inter', sans-serif;
+            font-size: 0.95rem;
+            background: #E8899E;
+            color: white;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .restart-btn:hover {
+            background: #D4708A;
+            transform: scale(1.05);
         }
 
         /* ========== CONFETTI CANVAS ========== */
@@ -435,6 +546,36 @@ valentine_html = """
                 </div>
                 <h1 class="celebration-text">Yay!</h1>
                 <p class="celebration-subtext">Happy Valentine's Day, Rohini!</p>
+
+                <!-- Games Section -->
+                <div class="games-section">
+                    <p class="games-intro">
+                        But Valentine's Day is <span class="days-count" id="days-until"></span> away...<br>
+                        In the meanwhile, here are some games for you! 💕
+                    </p>
+
+                    <div class="game-buttons">
+                        <button class="game-btn" id="snake-btn" onclick="showGame('snake')">🐍 Snake</button>
+                        <button class="game-btn" id="pong-btn" onclick="showGame('pong')">🏓 Pong</button>
+                    </div>
+
+                    <!-- Snake Game -->
+                    <div class="game-container" id="snake-game">
+                        <canvas id="snake-canvas" class="game-canvas" width="400" height="400"></canvas>
+                        <p class="game-score">Score: <span id="snake-score">0</span></p>
+                        <p class="game-instructions">Use arrow keys to move</p>
+                        <p class="game-over-text" id="snake-game-over" style="display:none;">Game Over!</p>
+                        <button class="restart-btn" id="snake-restart" style="display:none;" onclick="restartSnake()">Play Again</button>
+                    </div>
+
+                    <!-- Pong Game -->
+                    <div class="game-container" id="pong-game">
+                        <canvas id="pong-canvas" class="game-canvas" width="400" height="300"></canvas>
+                        <p class="game-score">You: <span id="player-score">0</span> | Computer: <span id="computer-score">0</span></p>
+                        <p class="game-instructions">Use ↑ and ↓ arrow keys to move your paddle</p>
+                        <button class="restart-btn" onclick="restartPong()">Reset Game</button>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -883,6 +1024,373 @@ valentine_html = """
 
         // Initialize
         createFloatingHearts();
+
+        // ========== DAYS UNTIL VALENTINE'S DAY ==========
+        function updateDaysUntil() {
+            const now = new Date();
+            const currentYear = now.getFullYear();
+            let valentines = new Date(currentYear, 1, 14); // Feb 14
+
+            // If Valentine's Day has passed this year, use next year
+            if (now > valentines) {
+                valentines = new Date(currentYear + 1, 1, 14);
+            }
+
+            const diffTime = valentines - now;
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+            const daysEl = document.getElementById('days-until');
+            if (daysEl) {
+                if (diffDays === 0) {
+                    daysEl.textContent = "TODAY";
+                } else if (diffDays === 1) {
+                    daysEl.textContent = "1 day";
+                } else {
+                    daysEl.textContent = diffDays + " days";
+                }
+            }
+        }
+        updateDaysUntil();
+
+        // ========== GAME SWITCHING ==========
+        function showGame(game) {
+            document.querySelectorAll('.game-container').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.game-btn').forEach(el => el.classList.remove('active'));
+
+            document.getElementById(game + '-game').classList.add('active');
+            document.getElementById(game + '-btn').classList.add('active');
+
+            if (game === 'snake') {
+                initSnake();
+            } else if (game === 'pong') {
+                initPong();
+            }
+        }
+
+        // ========== SNAKE GAME ==========
+        let snakeCanvas, snakeCtx;
+        let snake, food, direction, nextDirection, snakeScore, snakeGameOver, snakeInterval;
+        const GRID_SIZE = 20;
+        const SNAKE_SPEED = 120;
+
+        function initSnake() {
+            snakeCanvas = document.getElementById('snake-canvas');
+            snakeCtx = snakeCanvas.getContext('2d');
+
+            // Reset game state
+            snake = [{x: 10, y: 10}];
+            direction = {x: 1, y: 0};
+            nextDirection = {x: 1, y: 0};
+            snakeScore = 0;
+            snakeGameOver = false;
+
+            document.getElementById('snake-score').textContent = '0';
+            document.getElementById('snake-game-over').style.display = 'none';
+            document.getElementById('snake-restart').style.display = 'none';
+
+            spawnFood();
+
+            if (snakeInterval) clearInterval(snakeInterval);
+            snakeInterval = setInterval(updateSnake, SNAKE_SPEED);
+
+            drawSnake();
+        }
+
+        function spawnFood() {
+            const cols = snakeCanvas.width / GRID_SIZE;
+            const rows = snakeCanvas.height / GRID_SIZE;
+
+            do {
+                food = {
+                    x: Math.floor(Math.random() * cols),
+                    y: Math.floor(Math.random() * rows)
+                };
+            } while (snake.some(seg => seg.x === food.x && seg.y === food.y));
+        }
+
+        function updateSnake() {
+            if (snakeGameOver) return;
+
+            direction = nextDirection;
+
+            const head = {
+                x: snake[0].x + direction.x,
+                y: snake[0].y + direction.y
+            };
+
+            const cols = snakeCanvas.width / GRID_SIZE;
+            const rows = snakeCanvas.height / GRID_SIZE;
+
+            // Wall collision
+            if (head.x < 0 || head.x >= cols || head.y < 0 || head.y >= rows) {
+                endSnakeGame();
+                return;
+            }
+
+            // Self collision
+            if (snake.some(seg => seg.x === head.x && seg.y === head.y)) {
+                endSnakeGame();
+                return;
+            }
+
+            snake.unshift(head);
+
+            // Eat food
+            if (head.x === food.x && head.y === food.y) {
+                snakeScore += 10;
+                document.getElementById('snake-score').textContent = snakeScore;
+                spawnFood();
+            } else {
+                snake.pop();
+            }
+
+            drawSnake();
+        }
+
+        function drawSnake() {
+            snakeCtx.fillStyle = '#1a1a2e';
+            snakeCtx.fillRect(0, 0, snakeCanvas.width, snakeCanvas.height);
+
+            // Draw grid (subtle)
+            snakeCtx.strokeStyle = '#252542';
+            for (let i = 0; i <= snakeCanvas.width; i += GRID_SIZE) {
+                snakeCtx.beginPath();
+                snakeCtx.moveTo(i, 0);
+                snakeCtx.lineTo(i, snakeCanvas.height);
+                snakeCtx.stroke();
+            }
+            for (let i = 0; i <= snakeCanvas.height; i += GRID_SIZE) {
+                snakeCtx.beginPath();
+                snakeCtx.moveTo(0, i);
+                snakeCtx.lineTo(snakeCanvas.width, i);
+                snakeCtx.stroke();
+            }
+
+            // Draw food (heart)
+            snakeCtx.fillStyle = '#FF6B8A';
+            snakeCtx.font = '16px Arial';
+            snakeCtx.fillText('❤', food.x * GRID_SIZE + 2, food.y * GRID_SIZE + 16);
+
+            // Draw snake
+            snake.forEach((seg, i) => {
+                const gradient = snakeCtx.createLinearGradient(
+                    seg.x * GRID_SIZE, seg.y * GRID_SIZE,
+                    seg.x * GRID_SIZE + GRID_SIZE, seg.y * GRID_SIZE + GRID_SIZE
+                );
+                gradient.addColorStop(0, i === 0 ? '#E8899E' : '#FFB6C1');
+                gradient.addColorStop(1, i === 0 ? '#D4708A' : '#E8899E');
+
+                snakeCtx.fillStyle = gradient;
+                snakeCtx.beginPath();
+                snakeCtx.roundRect(
+                    seg.x * GRID_SIZE + 1,
+                    seg.y * GRID_SIZE + 1,
+                    GRID_SIZE - 2,
+                    GRID_SIZE - 2,
+                    4
+                );
+                snakeCtx.fill();
+            });
+        }
+
+        function endSnakeGame() {
+            snakeGameOver = true;
+            clearInterval(snakeInterval);
+            document.getElementById('snake-game-over').style.display = 'block';
+            document.getElementById('snake-restart').style.display = 'inline-block';
+        }
+
+        function restartSnake() {
+            initSnake();
+        }
+
+        // ========== PONG GAME ==========
+        let pongCanvas, pongCtx;
+        let playerY, computerY, ballX, ballY, ballVX, ballVY;
+        let playerScorePong, computerScorePong;
+        let pongRunning = false;
+        const PADDLE_HEIGHT = 70;
+        const PADDLE_WIDTH = 10;
+        const BALL_SIZE = 10;
+        const PADDLE_SPEED = 6;
+        const COMPUTER_SPEED = 3.5;
+
+        function initPong() {
+            pongCanvas = document.getElementById('pong-canvas');
+            pongCtx = pongCanvas.getContext('2d');
+
+            playerY = pongCanvas.height / 2 - PADDLE_HEIGHT / 2;
+            computerY = pongCanvas.height / 2 - PADDLE_HEIGHT / 2;
+
+            resetBall();
+
+            playerScorePong = 0;
+            computerScorePong = 0;
+            document.getElementById('player-score').textContent = '0';
+            document.getElementById('computer-score').textContent = '0';
+
+            if (!pongRunning) {
+                pongRunning = true;
+                requestAnimationFrame(updatePong);
+            }
+        }
+
+        function resetBall() {
+            ballX = pongCanvas.width / 2;
+            ballY = pongCanvas.height / 2;
+            ballVX = (Math.random() > 0.5 ? 1 : -1) * 4;
+            ballVY = (Math.random() - 0.5) * 6;
+        }
+
+        function updatePong() {
+            if (!pongRunning) return;
+
+            // Move ball
+            ballX += ballVX;
+            ballY += ballVY;
+
+            // Top/bottom walls
+            if (ballY <= 0 || ballY >= pongCanvas.height - BALL_SIZE) {
+                ballVY = -ballVY;
+                ballY = Math.max(0, Math.min(pongCanvas.height - BALL_SIZE, ballY));
+            }
+
+            // Player paddle collision (left)
+            if (ballX <= PADDLE_WIDTH + 15 &&
+                ballY + BALL_SIZE >= playerY &&
+                ballY <= playerY + PADDLE_HEIGHT &&
+                ballVX < 0) {
+                ballVX = -ballVX * 1.05;
+                ballVY += (ballY - (playerY + PADDLE_HEIGHT / 2)) * 0.1;
+                ballX = PADDLE_WIDTH + 16;
+            }
+
+            // Computer paddle collision (right)
+            if (ballX >= pongCanvas.width - PADDLE_WIDTH - 15 - BALL_SIZE &&
+                ballY + BALL_SIZE >= computerY &&
+                ballY <= computerY + PADDLE_HEIGHT &&
+                ballVX > 0) {
+                ballVX = -ballVX * 1.05;
+                ballVY += (ballY - (computerY + PADDLE_HEIGHT / 2)) * 0.1;
+                ballX = pongCanvas.width - PADDLE_WIDTH - 16 - BALL_SIZE;
+            }
+
+            // Limit ball speed
+            ballVX = Math.max(-12, Math.min(12, ballVX));
+            ballVY = Math.max(-8, Math.min(8, ballVY));
+
+            // Scoring
+            if (ballX < 0) {
+                computerScorePong++;
+                document.getElementById('computer-score').textContent = computerScorePong;
+                resetBall();
+            } else if (ballX > pongCanvas.width) {
+                playerScorePong++;
+                document.getElementById('player-score').textContent = playerScorePong;
+                resetBall();
+            }
+
+            // Computer AI
+            const computerCenter = computerY + PADDLE_HEIGHT / 2;
+            const ballCenter = ballY + BALL_SIZE / 2;
+            if (computerCenter < ballCenter - 10) {
+                computerY += COMPUTER_SPEED;
+            } else if (computerCenter > ballCenter + 10) {
+                computerY -= COMPUTER_SPEED;
+            }
+            computerY = Math.max(0, Math.min(pongCanvas.height - PADDLE_HEIGHT, computerY));
+
+            drawPong();
+            requestAnimationFrame(updatePong);
+        }
+
+        function drawPong() {
+            // Background
+            pongCtx.fillStyle = '#1a1a2e';
+            pongCtx.fillRect(0, 0, pongCanvas.width, pongCanvas.height);
+
+            // Center line
+            pongCtx.strokeStyle = '#333';
+            pongCtx.setLineDash([10, 10]);
+            pongCtx.beginPath();
+            pongCtx.moveTo(pongCanvas.width / 2, 0);
+            pongCtx.lineTo(pongCanvas.width / 2, pongCanvas.height);
+            pongCtx.stroke();
+            pongCtx.setLineDash([]);
+
+            // Player paddle (pink)
+            const playerGradient = pongCtx.createLinearGradient(10, playerY, 10 + PADDLE_WIDTH, playerY);
+            playerGradient.addColorStop(0, '#E8899E');
+            playerGradient.addColorStop(1, '#D4708A');
+            pongCtx.fillStyle = playerGradient;
+            pongCtx.beginPath();
+            pongCtx.roundRect(10, playerY, PADDLE_WIDTH, PADDLE_HEIGHT, 5);
+            pongCtx.fill();
+
+            // Computer paddle
+            const compGradient = pongCtx.createLinearGradient(
+                pongCanvas.width - 20, computerY,
+                pongCanvas.width - 10, computerY
+            );
+            compGradient.addColorStop(0, '#FFB6C1');
+            compGradient.addColorStop(1, '#E8899E');
+            pongCtx.fillStyle = compGradient;
+            pongCtx.beginPath();
+            pongCtx.roundRect(pongCanvas.width - 20, computerY, PADDLE_WIDTH, PADDLE_HEIGHT, 5);
+            pongCtx.fill();
+
+            // Ball (heart shape using emoji)
+            pongCtx.fillStyle = '#FF6B8A';
+            pongCtx.font = '14px Arial';
+            pongCtx.fillText('💕', ballX - 2, ballY + 12);
+        }
+
+        function restartPong() {
+            playerScorePong = 0;
+            computerScorePong = 0;
+            document.getElementById('player-score').textContent = '0';
+            document.getElementById('computer-score').textContent = '0';
+            resetBall();
+        }
+
+        // ========== KEYBOARD CONTROLS ==========
+        document.addEventListener('keydown', (e) => {
+            // Snake controls
+            if (document.getElementById('snake-game').classList.contains('active')) {
+                switch(e.key) {
+                    case 'ArrowUp':
+                        if (direction.y !== 1) nextDirection = {x: 0, y: -1};
+                        e.preventDefault();
+                        break;
+                    case 'ArrowDown':
+                        if (direction.y !== -1) nextDirection = {x: 0, y: 1};
+                        e.preventDefault();
+                        break;
+                    case 'ArrowLeft':
+                        if (direction.x !== 1) nextDirection = {x: -1, y: 0};
+                        e.preventDefault();
+                        break;
+                    case 'ArrowRight':
+                        if (direction.x !== -1) nextDirection = {x: 1, y: 0};
+                        e.preventDefault();
+                        break;
+                }
+            }
+
+            // Pong controls
+            if (document.getElementById('pong-game').classList.contains('active')) {
+                switch(e.key) {
+                    case 'ArrowUp':
+                        playerY = Math.max(0, playerY - PADDLE_SPEED * 4);
+                        e.preventDefault();
+                        break;
+                    case 'ArrowDown':
+                        playerY = Math.min(pongCanvas.height - PADDLE_HEIGHT, playerY + PADDLE_SPEED * 4);
+                        e.preventDefault();
+                        break;
+                }
+            }
+        });
     </script>
 </body>
 </html>
